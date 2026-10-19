@@ -15,6 +15,8 @@
 - 상어 안전의 "강한 단어"가 있으면 2순위 safety
 - "약한 단어"(건강, 수온 등)만 있으면, 인기 단어가 없을 때만 2순위 safety
 - 구조·이동 작전은 안전 기사로 보지 않는다 (관광객 안내에 가깝다, 10-19 결정)
+  구조 기사에는 "해경·통제·물속" 같은 단어가 작전 설명으로 자주 나온다.
+  그래서 구조 단어가 있으면, 사람 안전은 "강한 단어"(사고·풍덩 등)가 있을 때만 인정한다.
 """
 import re
 
@@ -35,7 +37,16 @@ HUMAN_SAFETY_WORDS = [
     "처벌", "단속", "불법 주차", "계도", "안내방송", "수칙", "안전요원",
     # 대응 기관
     "출동", "비상", "해경", "상황실", "관람객 안전", "시민 안전", "안전사고",
+    "안전 문제", "안전 우려",
 ]
+# 구조 기사 안에서도 사람 안전으로 볼 강한 단어
+HUMAN_SAFETY_STRONG = ["풍덩", "퐁당", "빠뜨", "입수", "뛰어들", "추락", "사고", "부상자",
+                       "다쳐", "압사", "구급", "과태료", "처벌", "단속", "불법 주차",
+                       "안전사고", "안전 문제", "안전 우려", "관람객 안전", "시민 안전"]
+
+# 구조·이동 작전 기사를 알아보는 단어 (안전 기사가 아님)
+RESCUE_WORDS = ["구조", "외해", "유도", "그물", "방류", "물대포", "물줄기", "워터펌프",
+                "귀환", "돌려보내", "내보내"]
 
 SHARK_SAFETY_STRONG = [
     "상처", "손상", "지느러미", "출혈", "부상", "스트레스", "이상 행동", "탈진", "폐사",
@@ -66,6 +77,9 @@ def classify(article: Article) -> Article:
         return article
 
     human = _found(HUMAN_SAFETY_WORDS, text)
+    rescue = _found(RESCUE_WORDS, text)
+    if rescue:  # 구조 기사면 작전 설명 단어는 빼고 강한 단어만 남긴다
+        human = [w for w in human if w in HUMAN_SAFETY_STRONG]
     strong = _found(SHARK_SAFETY_STRONG, text)
     weak = _found(SHARK_SAFETY_WEAK, text)
     popular = _found(POPULAR_WORDS, text)
