@@ -52,7 +52,7 @@
 - [x] 5-1. 주소 문제 — 10-19, 구글을 빼서 해결 (Bing은 진짜 기사 주소를 준다). 예전 구글 기사는 장부에 남아 있다
 - [x] 6. 자동 실행 — 10-19, 서버 안의 알람 (`server/scheduler.py`). 켜지면 바로 1번, 그 뒤 60분마다. `COLLECT_INTERVAL_MIN`으로 바꾼다 (0=끔)
 - [x] 7. 조건부 자동 판정 — 10-19, 검수 156건으로 다시 시험한 뒤 **자동 승인만 켬 (0.8 이상)**. 자동 반려는 끔. `AUTO_DECIDE=off/approve/both`, `AUTO_HIGH`, `AUTO_LOW`
-- [ ] 8. pizzalist에게 넘기기 (실행 문서)
+- [~] 8. pizzalist에게 넘기기 — 10-19 requirements.txt, README.md 작성, 새 환경에서 빈 장부로 켜지는지 확인함. 남은 것: 검수 기록 넘기는 방법, 라이선스
 - [ ] 9. README, 회고
 
 ## 4. 파일 구조
@@ -63,6 +63,8 @@ bukangi-notice/
 ├─ CLAUDE.local.md      ← 개인 설정 (Git에 올리지 않음)
 ├─ .gitignore           ← Git에 올리지 않을 파일 목록
 ├─ .env.example         ← .env 견본 (비밀 값 없음)
+├─ README.md            ← 저장소 설명서 (동작 흐름, 기준, 성능, 설치·실행, 설정, API, 한계)
+├─ requirements.txt     ← 설치 목록
 ├─ run_collect.py       ← 수집기를 한 번 돌리고 장부에 저장하는 실행 파일
 ├─ run_judge.py         ← 판정기 시험(교차 검증) + 학습 + 검수 전 기사에 점수 매기기
 ├─ run_server.py        ← 서버 켜기 (검수 화면 + 전달 API + 자동 수집) → http://localhost:8000 (끄기: Ctrl + C)
