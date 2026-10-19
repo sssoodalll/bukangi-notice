@@ -19,3 +19,6 @@ TASK.md
 
 # 운영자가 정하는 제외 단어 목록
 exclude_words.txt
+
+# 협업자에게 따로 보내는 파일 묶음
+handover/
