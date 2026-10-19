@@ -52,7 +52,7 @@
 - [x] 5-1. 주소 문제 — 10-19, 구글을 빼서 해결 (Bing은 진짜 기사 주소를 준다). 예전 구글 기사는 장부에 남아 있다
 - [x] 6. 자동 실행 — 10-19, 서버 안의 알람 (`server/scheduler.py`). 켜지면 바로 1번, 그 뒤 60분마다. `COLLECT_INTERVAL_MIN`으로 바꾼다 (0=끔)
 - [x] 7. 조건부 자동 판정 — 10-19, 검수 156건으로 다시 시험한 뒤 **자동 승인만 켬 (0.8 이상)**. 자동 반려는 끔. `AUTO_DECIDE=off/approve/both`, `AUTO_HIGH`, `AUTO_LOW`
-- [x] 8. pizzalist에게 넘기기 준비 — 10-19 requirements.txt, README.md, LICENSE(MIT), 새 환경 점검, 전달 꾸러미 `handover/`(장부 + 제외 단어 + 안내문, Git 제외). 남은 것: 꾸러미 보내기, 저장소 초대
+- [x] 8. pizzalist에게 넘기기 준비 — 10-19 requirements.txt, README.md, LICENSE(MIT), 새 환경 점검, 전달 꾸러미 `handover/`(장부 + 제외 단어 + 안내문, Git 제외). 10-19 pizzalist 저장소 초대 보냄 (수락 대기)
 - [ ] 9. README, 회고
 
 ## 4. 파일 구조
