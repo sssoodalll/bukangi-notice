@@ -14,6 +14,7 @@ class Article:
     query: str              # 어떤 검색어로 찾았는지
     summary: str = ""       # 기사 요약 (출처가 주는 경우에만)
     category: str = ""      # 꼬리표: safety / popular / other / unrelated (classify.py)
+    priority: int | None = None  # safety일 때 1 = 사람 안전, 2 = 상어 안전
     tags: list[str] = field(default_factory=list)  # 꼬리표를 붙인 근거 단어
 
     def title_key(self) -> str:

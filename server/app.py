@@ -30,10 +30,17 @@ app = FastAPI(title="부캉이 안전 기사 검수", lifespan=lifespan)
 KST = timezone(timedelta(hours=9))
 CATEGORY_LABELS = {"safety": "안전", "other": "기타", "popular": "인기"}
 STATUS_LABELS = {"pending": "검수 전", "approved": "승인", "rejected": "반려"}
+PRIORITY_LABELS = {1: "1순위 사람 안전", 2: "2순위 상어 안전"}
 
 
 def _kst(iso: str) -> str:
     return datetime.fromisoformat(iso).astimezone(KST).strftime("%m-%d %H:%M")
+
+
+def _category_label(a: dict) -> str:
+    if a["category"] == "safety":
+        return PRIORITY_LABELS.get(a.get("priority"), "안전")
+    return CATEGORY_LABELS.get(a["category"], a["category"])
 
 
 def _link(label: str, current: bool, **params) -> str:
@@ -51,7 +58,7 @@ def _row(a: dict, back: str) -> str:
     return f"""
     <li class="card {a['category']}">
       <div class="meta">
-        <span class="badge {a['category']}">{CATEGORY_LABELS.get(a['category'], a['category'])}</span>
+        <span class="badge {a['category']} p{a.get('priority') or ''}">{_category_label(a)}</span>
         <span class="badge st-{a['status']}">{STATUS_LABELS[a['status']]}</span>
         #{a['id']} · {_kst(a['published_at'])} · {escape(a['press'] or '')}
       </div>
@@ -121,7 +128,7 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
   .card.popular {{ border-left-color:var(--popular); }}
   .meta {{ font-size:13px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px; align-items:center; }}
   .badge {{ font-size:12px; padding:1px 8px; border-radius:999px; color:#fff; background:var(--other); }}
-  .badge.safety {{ background:var(--safety); }} .badge.popular {{ background:var(--popular); }}
+  .badge.safety {{ background:var(--safety); }} .badge.p1 {{ background:#ea580c; }} .badge.popular {{ background:var(--popular); }}
   .badge.st-pending {{ background:transparent; color:var(--muted); border:1px solid var(--line); }}
   .badge.st-approved {{ background:var(--safety); }} .badge.st-rejected {{ background:var(--reject); }}
   .title {{ display:block; margin:6px 0; color:var(--text); font-weight:600; text-decoration:none; }}
@@ -160,7 +167,7 @@ def change_status(article_id: int, status: str = Form(...), back: str = Form("/"
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
 
 
-API_FIELDS = ("id", "title", "url", "press", "published_at", "category", "tags", "reviewed_at")
+API_FIELDS = ("id", "title", "url", "press", "published_at", "category", "priority", "tags", "reviewed_at")
 
 
 @app.get("/api/approved")

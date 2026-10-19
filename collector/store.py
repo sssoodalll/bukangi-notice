@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS articles (
     query        TEXT,
     summary      TEXT,
     category     TEXT,
+    priority     INTEGER,
     tags         TEXT,
     status       TEXT NOT NULL DEFAULT 'pending',
     collected_at TEXT NOT NULL,
@@ -34,8 +35,9 @@ CREATE TABLE IF NOT EXISTS articles (
 );
 """
 
-# 검수할 때 보여 줄 순서: 안전 → 기타 → 인기
-CATEGORY_ORDER = "CASE category WHEN 'safety' THEN 0 WHEN 'other' THEN 1 ELSE 2 END"
+# 검수할 때 보여 줄 순서: 사람 안전 → 상어 안전 → 기타 → 인기
+CATEGORY_ORDER = ("CASE WHEN category = 'safety' THEN priority "
+                  "WHEN category = 'other' THEN 3 ELSE 4 END")
 
 
 def _now() -> str:
@@ -47,6 +49,10 @@ def connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
+    # 예전 장부에는 priority 칸이 없다 → 있으면 그대로, 없으면 추가
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
+    if "priority" not in cols:
+        conn.execute("ALTER TABLE articles ADD COLUMN priority INTEGER")
     return conn
 
 
@@ -57,10 +63,10 @@ def save(conn: sqlite3.Connection, articles: list[Article]) -> int:
     conn.executemany(
         """INSERT OR IGNORE INTO articles
            (url, title, title_key, press, published_at, source, query,
-            summary, category, tags, collected_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            summary, category, priority, tags, collected_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [(a.url, a.title, a.title_key(), a.press, a.published_at.isoformat(),
-          a.source, a.query, a.summary, a.category,
+          a.source, a.query, a.summary, a.category, a.priority,
           json.dumps(a.tags, ensure_ascii=False), _now()) for a in articles],
     )
     conn.commit()
@@ -104,6 +110,22 @@ def set_status(conn: sqlite3.Connection, article_id: int, status: str) -> bool:
     )
     conn.commit()
     return cur.rowcount > 0
+
+
+def reclassify(conn: sqlite3.Connection) -> int:
+    """장부의 모든 기사에 지금 규칙으로 꼬리표를 다시 붙인다. 검수 상태는 건드리지 않는다."""
+    from collector.classify import classify
+    rows = conn.execute("SELECT id, title, url, press, published_at, source, query, summary "
+                        "FROM articles").fetchall()
+    updates = []
+    for r in rows:
+        a = classify(Article(r["title"], r["url"], r["press"] or "",
+                             datetime.fromisoformat(r["published_at"]), r["source"] or "",
+                             r["query"] or "", r["summary"] or ""))
+        updates.append((a.category, a.priority, json.dumps(a.tags, ensure_ascii=False), r["id"]))
+    conn.executemany("UPDATE articles SET category = ?, priority = ?, tags = ? WHERE id = ?", updates)
+    conn.commit()
+    return len(updates)
 
 
 def count_by_status(conn: sqlite3.Connection) -> dict[str, int]:

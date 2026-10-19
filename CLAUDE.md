@@ -72,8 +72,8 @@ bukangi-notice/
 └─ collector/           ← 수집 모듈 (pizzalist가 가져갈 부품)
    ├─ __init__.py       ← collect(): 모으기 → 중복 빼기 → 꼬리표 → 관계없는 것 버리기 → 최신순
    ├─ article.py        ← 기사 한 건 (제목, 주소, 언론사, 시각, 출처, 검색어, 요약, 꼬리표)
-   ├─ classify.py       ← 단어 규칙 꼬리표: safety / popular / other / unrelated
-   ├─ store.py          ← SQLite 장부: save(), list_articles(), list_approved(), set_status(), count_by_status()
+   ├─ classify.py       ← 단어 규칙: 꼬리표(safety/popular/other/unrelated) + 우선순위(1 사람 안전, 2 상어 안전)
+   ├─ store.py          ← SQLite 장부: save(), list_articles(), list_approved(), set_status(), reclassify(), count_by_status()
    └─ sources/          ← 출처별 가져오기. 출처마다 fetch(query) -> list[Article]
       ├─ __init__.py    ← 출처 목록
       └─ bing_news.py   ← Bing 뉴스 RSS (요약도 같이 줌, 검색어마다 2쪽, 요청 사이 1초 쉼)
@@ -84,6 +84,7 @@ bukangi-notice/
 **실행 기록**
 - 10-18 구글만: 175건 (중복 제거 후). 대부분 인기·방문객 기사이고, 관계없는 포토뉴스도 섞여 있다.
 - 10-19 구글 + Bing: 179건 (구글 172건, Bing 7건 추가). 안전 기사(지느러미 상처)가 여러 건 잡혔다. 정치·상표 출원·행사 기사처럼 관계없는 것도 섞여 있다. → 거르기가 필요하다.
+- 10-19 **규칙 v2 (우선순위) 정확도** — 사람 검수 64건과 비교: '안전' 판정 중 승인 41/45 = **91%** (v1은 84%). 그런데 사람이 승인한 기사 중 3건을 '인기'로 분류해서 놓쳤다 (v1은 0건). 사람 판단에도 흔들림이 있다 (비슷한 '수온 떨어지면 떠날까' 기사 중 하나는 승인, 하나는 반려). 정치 기사가 '사고' 단어로 1순위에 오르는 오분류도 있다. → AI 판정(7단계)에서 보완한다.
 - 10-19 Bing만 (검색어 10개 × 2쪽, 약 53초): 131건 → 안전 101 / 기타 9 / 인기 21. 안전 검색어 덕분에 안전 기사 비율이 크게 올랐다.
 - 10-19 꼬리표 적용: 178건 → 안전 64 / 인기 51 / 기타 62 / 버림 1 (환승센터 공사 기사). 처음엔 제목에 '부캉이'가 없는 부캉이 기사도 버려져서, '부캉이' 검색 결과는 버리지 않도록 고쳤다.
   - 알려진 한계: 단어만 보므로 오분류가 있다 (예: NYT 기사가 '구조'에 걸림, '11월 하순 떠난다'는 이동 기사인데 기타). 사람 검수 → 나중에 AI 판정(7단계)으로 보완한다.
@@ -99,6 +100,7 @@ bukangi-notice/
 | 10-18 | 일정은 정하지 않음 | — |
 | 10-18 | 라이브러리: fastapi, uvicorn, httpx, feedparser (+10-19 python-multipart) | 서버, 인터넷 요청, RSS 읽기, 버튼 입력 읽기 |
 | 10-18 | **안전 기사 기준 = 상어의 안전 + 사람의 안전.** 넣는 것: ① 출입 통제·행동 수칙 ② 구조·이동 작전 ③ 상어 건강 ④ 사고·위험. 빼는 것: ⑤ 인기·방문객 ⑥ 관계없는 기사 | 검수 기록이 쌓이면 이 기준으로 조건부 자동 판정 |
+| 10-19 | **안전 기준 변경: 1순위 사람의 안전 > 2순위 상어의 안전. 구조·이동 작전은 안전 기사가 아님** (관광객 안내에 가깝다). 사람 안전 예: 관람객이 물에 손을 넣어 폰을 건짐, 출입 통제, 단속. 상어 안전 예: 상처, 불빛 비추기, 먹이 투척 | 사용자 결정 (검수하다가 '3차 구조' 기사를 반려한 이유) |
 | 10-19 | **뉴스 출처: 구글 + Bing 뉴스 RSS → 다음은 기관 공지 조사.** 네이버 HUB나 AI 검색은 나중에 필요하면 추가 | 키가 필요 없고 시험을 통과했다. robots.txt로 금지된 곳은 쓰지 않는다 |
 | 10-19 | GitHub 저장소: `sssoodalll` 계정에 만들고 pizzalist를 초대 | — |
 | 10-19 | 개인 설정은 `CLAUDE.local.md`로 분리하고 Git에 올리지 않음 | 공개 저장소에 개인 정보가 드러나지 않게 하려고 |
@@ -129,7 +131,10 @@ bukangi-notice/
 
 ```
 GET http://<서버>:8000/api/approved?since=2026-10-19T00:00:00+00:00&limit=50
-→ {"count": 1, "articles": [{"id", "title", "url", "press", "published_at", "category", "tags", "reviewed_at"}]}
+→ {"count": 1, "articles": [{"id", "title", "url", "press", "published_at", "category", "priority", "tags", "reviewed_at"}]}
+```
+- `priority`: 1 = 사람의 안전 (가장 중요), 2 = 상어의 안전
+```
 ```
 - 시각은 전부 UTC ISO 형식이다. 마지막으로 받은 기사의 `reviewed_at`을 다음 요청의 `since`로 넣으면 새 승인분만 받는다.
 - 알려진 한계: 10-19 이전에 모은 구글 뉴스 기사(`source=google_news`)는 `url`이 news.google.com을 거치는 주소다. 새 기사는 모두 진짜 주소다.
