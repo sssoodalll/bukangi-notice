@@ -1,0 +1,15 @@
+# 파이썬이 자동으로 만드는 임시 파일
+__pycache__/
+*.pyc
+
+# 비밀 값 (API 키 등)
+.env
+
+# 개인 설정
+CLAUDE.local.md
+
+# 수집한 데이터
+data/
+
+# 개인 메모장
+TASK.md
