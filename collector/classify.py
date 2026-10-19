@@ -13,9 +13,9 @@ import re
 from collector.article import Article
 
 TOPIC_WORDS = ["부캉이", "상어"]
-# 이 검색어로 찾은 기사는 제목에 단어가 없어도 버리지 않는다.
+# "부캉이"가 들어간 검색어로 찾은 기사는 제목에 단어가 없어도 버리지 않는다.
 # (흔한 단어가 아니라서, 검색 엔진이 본문에서 찾아낸 것으로 본다)
-TRUSTED_QUERIES = ["부캉이"]
+TRUSTED_WORD = "부캉이"
 
 SAFETY_WORDS = {
     "통제·수칙": ["통제", "금지", "자제", "당부", "주의", "접근", "출입", "안내방송",
@@ -38,7 +38,7 @@ def _text(article: Article) -> str:
 def classify(article: Article) -> Article:
     """기사에 category(꼬리표)와 tags(걸린 단어)를 채워서 돌려준다."""
     text = _text(article)
-    if not any(w in text for w in TOPIC_WORDS) and article.query not in TRUSTED_QUERIES:
+    if not any(w in text for w in TOPIC_WORDS) and TRUSTED_WORD not in article.query:
         article.category, article.tags = "unrelated", []
         return article
 

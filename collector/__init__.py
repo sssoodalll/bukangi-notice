@@ -10,7 +10,14 @@ from collector.article import Article
 from collector.classify import classify
 from collector.sources import SOURCES
 
-DEFAULT_QUERIES = ["부캉이", "북항 상어"]
+DEFAULT_QUERIES = [
+    # 넓게 찾기
+    "부캉이", "부캉이 상어", "북항 상어", "북항 친수공원 상어",
+    # 안전 기사를 겨냥 (안전 기준 ①~④)
+    "부캉이 통제", "부캉이 안전",       # ① 출입 통제·행동 수칙, ④ 사고·위험
+    "부캉이 구조", "부캉이 외해",       # ② 구조·이동 작전
+    "부캉이 건강", "부캉이 지느러미",   # ③ 상어 건강
+]
 
 
 def collect(queries: list[str] = DEFAULT_QUERIES,
