@@ -1,8 +1,11 @@
 """검수 화면 서버 (FastAPI).
 
 브라우저에서 기사 목록을 보고 [승인] [반려] 버튼을 누른다.
+서버가 켜져 있는 동안 scheduler가 정해진 간격마다 기사를 모은다.
 실행:  python run_server.py  →  http://localhost:8000
 """
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from html import escape
 from urllib.parse import urlencode
@@ -10,9 +13,19 @@ from urllib.parse import urlencode
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from collector import collect, store
+from collector import store
+from server import scheduler
 
-app = FastAPI(title="부캉이 안전 기사 검수")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(scheduler.loop()) if scheduler.INTERVAL_MIN > 0 else None
+    yield
+    if task:
+        task.cancel()
+
+
+app = FastAPI(title="부캉이 안전 기사 검수", lifespan=lifespan)
 
 KST = timezone(timedelta(hours=9))
 CATEGORY_LABELS = {"safety": "안전", "other": "기타", "popular": "인기"}
@@ -68,6 +81,15 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
         + [_link(label, category == c, status=status, category=c) for c, label in CATEGORY_LABELS.items()])
     items = "".join(_row(a, back) for a in rows) or '<li class="empty">기사가 없어요.</li>'
     notice = f'<p class="msg">{escape(msg)}</p>' if msg else ""
+    run = scheduler.last_run
+    if scheduler.INTERVAL_MIN <= 0:
+        auto = "자동 수집 꺼짐"
+    elif run["at"] is None:
+        auto = f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · 첫 수집 중…"
+    else:
+        result = f"오류 ({escape(run['error'])})" if run["error"] else f"새 기사 {run['new']}건"
+        auto = (f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · "
+                f"마지막 {run['at'].astimezone(KST):%m-%d %H:%M} {result}")
 
     return f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
@@ -90,6 +112,7 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
   .bar {{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin:12px 0; }}
   .bar button {{ padding:8px 14px; border-radius:8px; border:0; background:var(--text);
                 color:var(--bg); cursor:pointer; font-size:14px; }}
+  .auto {{ color:var(--muted); margin-left:8px; }}
   .msg {{ background:var(--card); border-left:4px solid var(--safety); padding:8px 12px; }}
   ul {{ list-style:none; padding:0; margin:0; display:grid; gap:10px; }}
   .card {{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--other);
@@ -116,7 +139,7 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
   <nav>{status_tabs}</nav>
   <nav>{category_tabs}</nav>
   <div class="bar">
-    <span>{len(rows)}건</span>
+    <span>{len(rows)}건 <small class="auto">{auto}</small></span>
     <form method="post" action="/collect"><button>지금 새 기사 모으기</button></form>
   </div>
   {notice}
@@ -163,10 +186,7 @@ def approved_articles(since: str = "", limit: int = 50):
 
 @app.post("/collect")
 def collect_now():
-    articles = collect()
-    conn = store.connect()
-    try:
-        new = store.save(conn, articles)
-    finally:
-        conn.close()
-    return RedirectResponse("/?" + urlencode({"msg": f"새 기사 {new}건을 장부에 넣었어요."}), status_code=303)
+    new = scheduler.run_collection()
+    msg = (f"새 기사 {new}건을 장부에 넣었어요." if new is not None
+           else "이미 수집 중이거나 오류가 났어요. 잠시 뒤 다시 확인해 주세요.")
+    return RedirectResponse("/?" + urlencode({"msg": msg}), status_code=303)
