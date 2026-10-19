@@ -1,5 +1,5 @@
 """기사 한 건을 담는 상자."""
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime
 
 
@@ -12,6 +12,8 @@ class Article:
     source: str             # 어디서 찾았는지 (예: google_news, naver)
     query: str              # 어떤 검색어로 찾았는지
     summary: str = ""       # 기사 요약 (출처가 주는 경우에만)
+    category: str = ""      # 꼬리표: safety / popular / other / unrelated (classify.py)
+    tags: list[str] = field(default_factory=list)  # 꼬리표를 붙인 근거 단어
 
     def to_dict(self) -> dict:
         d = asdict(self)

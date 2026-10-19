@@ -1,4 +1,4 @@
-"""부캉이 안전 기사 수집 로봇.
+"""부캉이 안전 기사 수집 모듈.
 
 다른 프로그램에서는 이렇게 쓴다:
     from collector import collect
@@ -7,6 +7,7 @@
 import re
 
 from collector.article import Article
+from collector.classify import classify
 from collector.sources import SOURCES
 
 DEFAULT_QUERIES = ["부캉이", "북항 상어"]
@@ -17,8 +18,12 @@ def _title_key(title: str) -> str:
     return re.sub(r"[\W_]+", "", title)
 
 
-def collect(queries: list[str] = DEFAULT_QUERIES) -> list[Article]:
-    """모든 출처에서 검색어마다 기사를 모으고, 중복을 빼고, 최신순으로 돌려준다."""
+def collect(queries: list[str] = DEFAULT_QUERIES,
+            keep_unrelated: bool = False) -> list[Article]:
+    """모든 출처에서 기사를 모으고, 중복을 빼고, 꼬리표를 붙여 최신순으로 돌려준다.
+
+    부캉이와 관계없는 기사는 버린다. (keep_unrelated=True면 남긴다)
+    """
     seen_urls, seen_titles, result = set(), set(), []
     for fetch in SOURCES.values():
         for q in queries:
@@ -28,6 +33,9 @@ def collect(queries: list[str] = DEFAULT_QUERIES) -> list[Article]:
                     continue
                 seen_urls.add(a.url)
                 seen_titles.add(key)
+                classify(a)
+                if a.category == "unrelated" and not keep_unrelated:
+                    continue
                 result.append(a)
     result.sort(key=lambda a: a.published_at, reverse=True)
     return result
