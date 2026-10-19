@@ -14,6 +14,10 @@ from collector.article import Article
 
 DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "articles.db"
 STATUSES = ("pending", "approved", "rejected")
+DECIDERS = ("human", "auto")  # 누가 결정했나: 사람 / AI 판정기
+
+# 처음 만든 뒤에 추가한 칸들 (예전 장부를 열 때 자동으로 붙인다)
+NEW_COLUMNS = {"priority": "INTEGER", "decided_by": "TEXT", "score": "REAL"}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS articles (
@@ -30,6 +34,8 @@ CREATE TABLE IF NOT EXISTS articles (
     priority     INTEGER,
     tags         TEXT,
     status       TEXT NOT NULL DEFAULT 'pending',
+    decided_by   TEXT,
+    score        REAL,
     collected_at TEXT NOT NULL,
     reviewed_at  TEXT
 );
@@ -49,10 +55,11 @@ def connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute(SCHEMA)
-    # 예전 장부에는 priority 칸이 없다 → 있으면 그대로, 없으면 추가
+    # 예전 장부에 없는 칸은 추가한다 (이미 있으면 그대로)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
-    if "priority" not in cols:
-        conn.execute("ALTER TABLE articles ADD COLUMN priority INTEGER")
+    for name, kind in NEW_COLUMNS.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE articles ADD COLUMN {name} {kind}")
     return conn
 
 
@@ -100,16 +107,34 @@ def list_approved(conn: sqlite3.Connection, since: str | None = None,
     return [dict(r, tags=json.loads(r["tags"] or "[]")) for r in rows]
 
 
-def set_status(conn: sqlite3.Connection, article_id: int, status: str) -> bool:
+def set_status(conn: sqlite3.Connection, article_id: int, status: str,
+               decided_by: str = "human") -> bool:
     """검수 결과를 기록한다. 해당 기사가 없으면 False."""
     if status not in STATUSES:
         raise ValueError(f"status는 {STATUSES} 중 하나여야 합니다: {status}")
+    if decided_by not in DECIDERS:
+        raise ValueError(f"decided_by는 {DECIDERS} 중 하나여야 합니다: {decided_by}")
+    pending = status == "pending"
     cur = conn.execute(
-        "UPDATE articles SET status = ?, reviewed_at = ? WHERE id = ?",
-        (status, _now() if status != "pending" else None, article_id),
+        "UPDATE articles SET status = ?, reviewed_at = ?, decided_by = ? WHERE id = ?",
+        (status, None if pending else _now(), None if pending else decided_by, article_id),
     )
     conn.commit()
     return cur.rowcount > 0
+
+
+def human_reviewed(conn: sqlite3.Connection) -> list[dict]:
+    """사람이 승인/반려한 기사 (판정기의 정답지). AI가 결정한 것은 넣지 않는다."""
+    rows = conn.execute("SELECT * FROM articles WHERE status != 'pending' "
+                        "AND (decided_by IS NULL OR decided_by = 'human') ORDER BY id").fetchall()
+    return [dict(r, tags=json.loads(r["tags"] or "[]")) for r in rows]
+
+
+def set_scores(conn: sqlite3.Connection, scores: dict[int, float]) -> None:
+    """기사마다 판정기가 매긴 승인 확률을 적는다."""
+    conn.executemany("UPDATE articles SET score = ? WHERE id = ?",
+                     [(s, i) for i, s in scores.items()])
+    conn.commit()
 
 
 def reclassify(conn: sqlite3.Connection) -> int:

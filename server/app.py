@@ -60,6 +60,8 @@ def _row(a: dict, back: str) -> str:
       <div class="meta">
         <span class="badge {a['category']} p{a.get('priority') or ''}">{_category_label(a)}</span>
         <span class="badge st-{a['status']}">{STATUS_LABELS[a['status']]}</span>
+        {'<span class="badge ai">AI 결정</span>' if a.get('decided_by') == 'auto' else ''}
+        {f'<span class="score">AI 승인 확률 {a["score"]:.2f}</span>' if a.get('score') is not None else ''}
         #{a['id']} · {_kst(a['published_at'])} · {escape(a['press'] or '')}
       </div>
       <a class="title" href="{escape(a['url'])}" target="_blank" rel="noopener">{escape(a['title'])}</a>
@@ -95,6 +97,8 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
         auto = f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · 첫 수집 중…"
     else:
         result = f"오류 ({escape(run['error'])})" if run["error"] else f"새 기사 {run['new']}건"
+        if run.get("auto") and scheduler.AUTO_DECIDE:
+            result += f" · AI 자동 승인 {run['auto']['approved']} / 반려 {run['auto']['rejected']}"
         auto = (f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · "
                 f"마지막 {run['at'].astimezone(KST):%m-%d %H:%M} {result}")
 
@@ -120,6 +124,8 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
   .bar button {{ padding:8px 14px; border-radius:8px; border:0; background:var(--text);
                 color:var(--bg); cursor:pointer; font-size:14px; }}
   .auto {{ color:var(--muted); margin-left:8px; }}
+  .score {{ font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); }}
+  .badge.ai {{ background:#7c3aed; }}
   .msg {{ background:var(--card); border-left:4px solid var(--safety); padding:8px 12px; }}
   ul {{ list-style:none; padding:0; margin:0; display:grid; gap:10px; }}
   .card {{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--other);
@@ -167,7 +173,8 @@ def change_status(article_id: int, status: str = Form(...), back: str = Form("/"
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
 
 
-API_FIELDS = ("id", "title", "url", "press", "published_at", "category", "priority", "tags", "reviewed_at")
+API_FIELDS = ("id", "title", "url", "press", "published_at", "category", "priority", "tags",
+              "reviewed_at", "decided_by", "score")
 
 
 @app.get("/api/approved")
