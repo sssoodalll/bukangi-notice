@@ -2,6 +2,7 @@
 
 꼬리표(category):
 - unrelated: 부캉이·상어 이야기가 아님 → collect()에서 버린다
+- politics:  정치 기사 (정치인·정당·국회 등) → collect()에서 버린다 (10-19 결정)
 - safety:    안전 기사
 - popular:   인기·방문객 기사
 - other:     부캉이 기사지만 어느 쪽도 아님 (구조·이동 작전 기사도 여기) → 사람이 판단
@@ -53,7 +54,15 @@ SHARK_SAFETY_STRONG = [
     # 상어를 해치는 사람의 행동
     "불빛", "랜턴", "손전등", "플래시", "투척", "던지", "던져", "만지", "괴롭", "자극",
 ]
+SHARK_SAFETY_STRONG += [
+    # 멸종위기종이라는 정보 → 사람들이 더 조심하게 된다 (10-19 결정)
+    "멸종", "보호종", "보호 대상", "보호대상", "정체는", "흑상어였", "흑상어로",
+]
 SHARK_SAFETY_WEAK = ["건강", "수온", "먹이", "굶"]
+
+# 정치 기사는 안전 공지에 넣지 않는다 (10-19 결정)
+POLITICS_WORDS = ["대통령", "李", "의원", "국회", "국감", "민주당", "국민의힘", "여야", "與野",
+                  "정당", "사퇴", "선거", "후보", "당 대표", "당대표"]
 
 POPULAR_WORDS = ["방문객", "관람객", "돌파", "인기", "상표", "굿즈", "관광", "핫플",
                  "명소", "뉴욕타임스", "스타", "체험", "축제", "구경", "관중", "인파"]
@@ -74,6 +83,11 @@ def classify(article: Article) -> Article:
     article.priority = None
     if not any(w in text for w in TOPIC_WORDS) and TRUSTED_WORD not in article.query:
         article.category, article.tags = "unrelated", []
+        return article
+
+    politics = _found(POLITICS_WORDS, article.title)  # 제목 기준 (요약에 스치듯 나오는 건 봐준다)
+    if politics:
+        article.category, article.tags = "politics", [f"정치:{w}" for w in politics]
         return article
 
     human = _found(HUMAN_SAFETY_WORDS, text)

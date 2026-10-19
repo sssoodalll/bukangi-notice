@@ -2,8 +2,9 @@
 
 환경 변수:
 - COLLECT_INTERVAL_MIN: 수집 간격(분). 기본 60, 0이면 끔
-- AUTO_DECIDE: 1이면 점수에 따라 자동 승인/반려 (기본 0 = 점수만 매기고 사람이 결정)
-- AUTO_HIGH / AUTO_LOW: 자동 승인 / 자동 반려 기준 (기본 0.7 / 0.3)
+- AUTO_DECIDE: off = 점수만 / approve = 자동 승인만 (기본) / both = 자동 승인 + 자동 반려
+- AUTO_HIGH / AUTO_LOW: 자동 승인 / 자동 반려 기준 (기본 0.8 / 0.3)
+  (10-19 결정: 안전 기사를 놓칠 수 있는 자동 반려는 끄고, 확신이 높은 자동 승인만 켠다)
 
 서버가 켜지면 바로 한 번 돌고, 그 뒤로 간격마다 돈다.
 """
@@ -18,8 +19,10 @@ from collector import collect, judge, store
 log = logging.getLogger("uvicorn.error")
 
 INTERVAL_MIN = int(os.environ.get("COLLECT_INTERVAL_MIN", "60"))
-AUTO_DECIDE = os.environ.get("AUTO_DECIDE", "0") == "1"
-AUTO_HIGH = float(os.environ.get("AUTO_HIGH", "0.7"))
+AUTO_DECIDE = os.environ.get("AUTO_DECIDE", "approve")
+if AUTO_DECIDE not in ("off", "approve", "both"):
+    raise ValueError(f"AUTO_DECIDE는 off / approve / both 중 하나여야 해요: {AUTO_DECIDE}")
+AUTO_HIGH = float(os.environ.get("AUTO_HIGH", "0.8"))
 AUTO_LOW = float(os.environ.get("AUTO_LOW", "0.3"))
 
 # 마지막 수집 결과 (검수 화면에 보여 준다)
@@ -29,7 +32,7 @@ _lock = threading.Lock()  # 알람과 "지금 모으기" 버튼이 동시에 돌
 
 def judge_pending(conn) -> dict | None:
     """사람 검수 기록으로 다시 배우고, 검수 전 기사에 점수를 매긴다.
-    AUTO_DECIDE가 켜져 있으면 기준에 따라 자동 승인/반려한다.
+    AUTO_DECIDE에 따라 자동 승인(/반려)한다.
     검수 기록이 부족하면 아무것도 하지 않고 None."""
     try:
         judge.train(store.human_reviewed(conn))
@@ -41,12 +44,12 @@ def judge_pending(conn) -> dict | None:
     store.set_scores(conn, {a["id"]: s for a, s in zip(pending, scores)})
 
     result = {"scored": len(pending), "approved": 0, "rejected": 0}
-    if AUTO_DECIDE:
+    if AUTO_DECIDE != "off":
         for a, s in zip(pending, scores):
             if s >= AUTO_HIGH:
                 store.set_status(conn, a["id"], "approved", decided_by="auto")
                 result["approved"] += 1
-            elif s <= AUTO_LOW:
+            elif s <= AUTO_LOW and AUTO_DECIDE == "both":
                 store.set_status(conn, a["id"], "rejected", decided_by="auto")
                 result["rejected"] += 1
     return result

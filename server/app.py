@@ -97,8 +97,10 @@ def review_page(status: str = "pending", category: str = "", msg: str = ""):
         auto = f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · 첫 수집 중…"
     else:
         result = f"오류 ({escape(run['error'])})" if run["error"] else f"새 기사 {run['new']}건"
-        if run.get("auto") and scheduler.AUTO_DECIDE:
-            result += f" · AI 자동 승인 {run['auto']['approved']} / 반려 {run['auto']['rejected']}"
+        if run.get("auto") and scheduler.AUTO_DECIDE != "off":
+            result += f" · AI 자동 승인 {run['auto']['approved']}"
+            if scheduler.AUTO_DECIDE == "both":
+                result += f" / 반려 {run['auto']['rejected']}"
         auto = (f"자동 수집: {scheduler.INTERVAL_MIN}분마다 · "
                 f"마지막 {run['at'].astimezone(KST):%m-%d %H:%M} {result}")
 
