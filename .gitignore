@@ -16,3 +16,6 @@ TASK.md
 
 # Claude 앱 설정 (이 컴퓨터 경로가 들어 있음)
 .claude/
+
+# 운영자가 정하는 제외 단어 목록
+exclude_words.txt

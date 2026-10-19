@@ -83,8 +83,8 @@ def save(conn: sqlite3.Connection, articles: list[Article]) -> int:
 def list_articles(conn: sqlite3.Connection, status: str | None = None,
                   category: str | None = None) -> list[dict]:
     """장부에서 기사를 꺼낸다. 안전 기사가 먼저, 같은 꼬리표 안에서는 최신순.
-    관계없는 기사·정치 기사는 빼고 꺼낸다."""
-    where, args = ["category NOT IN ('unrelated', 'politics')"], []
+    관계없는 기사·제외 단어가 있는 기사는 빼고 꺼낸다."""
+    where, args = ["category NOT IN ('unrelated', 'excluded')"], []
     if status:
         where.append("status = ?"); args.append(status)
     if category:
@@ -99,7 +99,7 @@ def list_approved(conn: sqlite3.Connection, since: str | None = None,
                   limit: int = 50) -> list[dict]:
     """승인된 기사를 최근 승인 순으로 꺼낸다. since(UTC ISO 시각) 이후 승인분만 고를 수 있다."""
     sql = ("SELECT * FROM articles WHERE status = 'approved' "
-           "AND category NOT IN ('unrelated', 'politics')")
+           "AND category NOT IN ('unrelated', 'excluded')")
     args = []
     if since:
         sql += " AND reviewed_at > ?"; args.append(since)
@@ -128,7 +128,7 @@ def human_reviewed(conn: sqlite3.Connection) -> list[dict]:
     """사람이 승인/반려한 기사 (판정기의 정답지). AI가 결정한 것, 수집 때 버리는 꼬리표는 넣지 않는다."""
     rows = conn.execute("SELECT * FROM articles WHERE status != 'pending' "
                         "AND (decided_by IS NULL OR decided_by = 'human') "
-                        "AND category NOT IN ('unrelated', 'politics') ORDER BY id").fetchall()
+                        "AND category NOT IN ('unrelated', 'excluded') ORDER BY id").fetchall()
     return [dict(r, tags=json.loads(r["tags"] or "[]")) for r in rows]
 
 

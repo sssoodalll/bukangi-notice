@@ -2,7 +2,8 @@
 
 꼬리표(category):
 - unrelated: 부캉이·상어 이야기가 아님 → collect()에서 버린다
-- politics:  정치 기사 (정치인·정당·국회 등) → collect()에서 버린다 (10-19 결정)
+- excluded:  제외 단어가 제목에 있는 기사 → collect()에서 버린다
+             (단어 목록은 exclude_words.txt. 운영자가 정하며 Git에 올리지 않는다)
 - safety:    안전 기사
 - popular:   인기·방문객 기사
 - other:     부캉이 기사지만 어느 쪽도 아님 (구조·이동 작전 기사도 여기) → 사람이 판단
@@ -19,7 +20,9 @@
   구조 기사에는 "해경·통제·물속" 같은 단어가 작전 설명으로 자주 나온다.
   그래서 구조 단어가 있으면, 사람 안전은 "강한 단어"(사고·풍덩 등)가 있을 때만 인정한다.
 """
+import os
 import re
+from pathlib import Path
 
 from collector.article import Article
 
@@ -60,9 +63,19 @@ SHARK_SAFETY_STRONG += [
 ]
 SHARK_SAFETY_WEAK = ["건강", "수온", "먹이", "굶"]
 
-# 정치 기사는 안전 공지에 넣지 않는다 (10-19 결정)
-POLITICS_WORDS = ["대통령", "李", "의원", "국회", "국감", "민주당", "국민의힘", "여야", "與野",
-                  "정당", "사퇴", "선거", "후보", "당 대표", "당대표"]
+# 제외 단어 목록: 한 줄에 단어 하나, '#'으로 시작하는 줄은 설명. 파일이 없으면 제외하지 않는다.
+EXCLUDE_FILE = Path(os.environ.get(
+    "EXCLUDE_WORDS_FILE", Path(__file__).resolve().parent.parent / "exclude_words.txt"))
+
+
+def _load_exclude_words(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [w.strip() for w in lines if w.strip() and not w.strip().startswith("#")]
+
+
+EXCLUDE_WORDS = _load_exclude_words(EXCLUDE_FILE)
 
 POPULAR_WORDS = ["방문객", "관람객", "돌파", "인기", "상표", "굿즈", "관광", "핫플",
                  "명소", "뉴욕타임스", "스타", "체험", "축제", "구경", "관중", "인파"]
@@ -85,9 +98,8 @@ def classify(article: Article) -> Article:
         article.category, article.tags = "unrelated", []
         return article
 
-    politics = _found(POLITICS_WORDS, article.title)  # 제목 기준 (요약에 스치듯 나오는 건 봐준다)
-    if politics:
-        article.category, article.tags = "politics", [f"정치:{w}" for w in politics]
+    if _found(EXCLUDE_WORDS, article.title):  # 제목 기준 (요약에 스치듯 나오는 건 봐준다)
+        article.category, article.tags = "excluded", []
         return article
 
     human = _found(HUMAN_SAFETY_WORDS, text)

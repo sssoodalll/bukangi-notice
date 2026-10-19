@@ -1,0 +1,9 @@
+# 설치: pip install -r requirements.txt   (Python 3.10 이상, 개발은 3.12에서 함)
+fastapi==0.143.3
+uvicorn==0.54.0
+python-multipart==0.0.32
+httpx==0.28.1
+feedparser==6.0.14
+scikit-learn==1.9.1
+joblib==1.6.0
+numpy==2.5.4
