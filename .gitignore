@@ -13,3 +13,6 @@ data/
 
 # 개인 메모장
 TASK.md
+
+# Claude 앱 설정 (이 컴퓨터 경로가 들어 있음)
+.claude/

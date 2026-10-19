@@ -47,7 +47,7 @@
 - [x] 2-3. 거르기 — 10-19, 단어 규칙으로 꼬리표 (안전/인기/기타), 관계없는 것만 버림
 - [x] 2-4. GitHub 첫 저장(commit) + 올리기(push) — 10-19, https://github.com/sssoodalll/bukangi-notice (Public)
 - [x] 3. 저장 + 중복 제거 — 10-19, SQLite 장부 `data/articles.db` (실행할 때마다 새 기사만 추가)
-- [ ] 4. 검수 기능 (승인/반려)
+- [x] 4. 검수 화면 (승인/반려/되돌리기, 지금 새 기사 모으기) — 10-19, FastAPI 웹 페이지
 - [ ] 5. 전달 API (부캉이 사이트가 가져갈 창구)
 - [ ] 6. 자동 실행 (주기적으로)
 - [ ] 7. 조건부 자동 판정 (검수 기록 기반)
@@ -63,6 +63,8 @@ bukangi-notice/
 ├─ .gitignore           ← Git에 올리지 않을 파일 목록
 ├─ .env.example         ← .env 견본 (비밀 값 없음)
 ├─ run_collect.py       ← 수집기를 한 번 돌리고 장부에 저장하는 실행 파일
+├─ run_server.py        ← 검수 화면 서버 켜기 → http://localhost:8000 (끄기: Ctrl + C)
+├─ server/app.py        ← FastAPI 검수 화면: GET / , POST /articles/{id}/status , POST /collect
 ├─ data/articles.db     ← 장부 파일 (Git에 올리지 않음, 실행하면 생김)
 └─ collector/           ← 수집 모듈 (pizzalist가 가져갈 부품)
    ├─ __init__.py       ← collect(): 모으기 → 중복 빼기 → 꼬리표 → 관계없는 것 버리기 → 최신순
@@ -75,7 +77,7 @@ bukangi-notice/
       └─ bing_news.py   ← Bing 뉴스 RSS (요약도 같이 줌)
 ```
 
-**실행:** `conda activate bukangi` → `python run_collect.py`
+**실행:** `conda activate bukangi` → 수집만: `python run_collect.py` / 검수 화면: `python run_server.py`
 
 **실행 기록**
 - 10-18 구글만: 175건 (중복 제거 후). 대부분 인기·방문객 기사이고, 관계없는 포토뉴스도 섞여 있다.
@@ -92,7 +94,7 @@ bukangi-notice/
 | 10-18 | 결과물은 부캉이 서버에 붙일 **모듈**, Git으로 협업 | 요구사항 |
 | 10-18 | 구조: **수집 모듈 따로 + FastAPI 서버(검수·전달) 따로** | 최종 목표가 모듈이다. 골라 붙이기 쉽다 |
 | 10-18 | 일정은 정하지 않음 | — |
-| 10-18 | 라이브러리: fastapi, uvicorn, httpx, feedparser | 서버, 인터넷 요청, RSS 읽기 |
+| 10-18 | 라이브러리: fastapi, uvicorn, httpx, feedparser (+10-19 python-multipart) | 서버, 인터넷 요청, RSS 읽기, 버튼 입력 읽기 |
 | 10-18 | **안전 기사 기준 = 상어의 안전 + 사람의 안전.** 넣는 것: ① 출입 통제·행동 수칙 ② 구조·이동 작전 ③ 상어 건강 ④ 사고·위험. 빼는 것: ⑤ 인기·방문객 ⑥ 관계없는 기사 | 검수 기록이 쌓이면 이 기준으로 조건부 자동 판정 |
 | 10-19 | **뉴스 출처: 구글 + Bing 뉴스 RSS → 다음은 기관 공지 조사.** 네이버 HUB나 AI 검색은 나중에 필요하면 추가 | 키가 필요 없고 시험을 통과했다. robots.txt로 금지된 곳은 쓰지 않는다 |
 | 10-19 | GitHub 저장소: `sssoodalll` 계정에 만들고 pizzalist를 초대 | — |
@@ -101,6 +103,7 @@ bukangi-notice/
 | 10-19 | `TASK.md`는 개인 메모장으로 쓰고 Git에 올리지 않음 | 공개 저장소라서 |
 | 10-19 | 거르기 방식: **단어 규칙 + 꼬리표만 붙이기.** 관계없는 기사만 버리고, 안전 단어가 있으면 인기 단어가 있어도 safety | 무료이고 근거가 보인다. 규칙 실수로 안전 기사가 사라지지 않게 한다. AI 판정은 7단계에서 |
 | 10-19 | 저장: **SQLite** (`data/articles.db`). 검수 상태 pending/approved/rejected. 같은 주소나 같은 제목이면 다시 넣지 않음 | 상태를 자주 바꾸고 "승인된 것만" 꺼내야 한다. Python 기본 포함. 부캉이 서버도 SQLite를 쓴다 |
+| 10-19 | 검수 화면: **FastAPI 웹 페이지** (내 컴퓨터에서만, 127.0.0.1:8000). 별도 라이브러리 없이 HTML을 직접 만든다 | 전달 API도 같은 서버에 붙인다. 화면을 보여 줄 수 있다 |
 | 10-19 | 다음 작업: **거르기(2-3) 먼저**, 기관 공지 조사(2-2)는 그다음. pizzalist 초대는 나중에 | 결과가 바로 보이고, 같은 거르기를 기관 공지에도 쓸 수 있다 |
 
 ## 6. 출처 조사 기록 (10-18 ~ 10-19)
