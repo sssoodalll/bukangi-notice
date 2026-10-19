@@ -1,4 +1,5 @@
 """기사 한 건을 담는 상자."""
+import re
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 
@@ -14,6 +15,10 @@ class Article:
     summary: str = ""       # 기사 요약 (출처가 주는 경우에만)
     category: str = ""      # 꼬리표: safety / popular / other / unrelated (classify.py)
     tags: list[str] = field(default_factory=list)  # 꼬리표를 붙인 근거 단어
+
+    def title_key(self) -> str:
+        # 띄어쓰기·따옴표·기호를 지워서 "거의 같은 제목"을 같은 것으로 본다
+        return re.sub(r"[\W_]+", "", self.title)
 
     def to_dict(self) -> dict:
         d = asdict(self)

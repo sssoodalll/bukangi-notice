@@ -1,21 +1,16 @@
 """부캉이 안전 기사 수집 모듈.
 
 다른 프로그램에서는 이렇게 쓴다:
-    from collector import collect
+    from collector import collect, store
     articles = collect()
+    conn = store.connect()
+    store.save(conn, articles)
 """
-import re
-
 from collector.article import Article
 from collector.classify import classify
 from collector.sources import SOURCES
 
 DEFAULT_QUERIES = ["부캉이", "북항 상어"]
-
-
-def _title_key(title: str) -> str:
-    # 띄어쓰기·따옴표·기호를 지워서 "거의 같은 제목"을 같은 것으로 본다
-    return re.sub(r"[\W_]+", "", title)
 
 
 def collect(queries: list[str] = DEFAULT_QUERIES,
@@ -28,7 +23,7 @@ def collect(queries: list[str] = DEFAULT_QUERIES,
     for fetch in SOURCES.values():
         for q in queries:
             for a in fetch(q):
-                key = _title_key(a.title)
+                key = a.title_key()
                 if a.url in seen_urls or key in seen_titles:
                     continue
                 seen_urls.add(a.url)

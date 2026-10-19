@@ -46,7 +46,7 @@
 - [ ] 2-2. 기관 공지 출처 조사 (국립수산과학원, 부산시설공단, 부산해경, 동구청)
 - [x] 2-3. 거르기 — 10-19, 단어 규칙으로 꼬리표 (안전/인기/기타), 관계없는 것만 버림
 - [x] 2-4. GitHub 첫 저장(commit) + 올리기(push) — 10-19, https://github.com/sssoodalll/bukangi-notice (Public)
-- [ ] 3. 저장 + 중복 제거
+- [x] 3. 저장 + 중복 제거 — 10-19, SQLite 장부 `data/articles.db` (실행할 때마다 새 기사만 추가)
 - [ ] 4. 검수 기능 (승인/반려)
 - [ ] 5. 전달 API (부캉이 사이트가 가져갈 창구)
 - [ ] 6. 자동 실행 (주기적으로)
@@ -62,11 +62,13 @@ bukangi-notice/
 ├─ CLAUDE.local.md      ← 개인 설정 (Git에 올리지 않음)
 ├─ .gitignore           ← Git에 올리지 않을 파일 목록
 ├─ .env.example         ← .env 견본 (비밀 값 없음)
-├─ run_collect.py       ← 수집기를 한 번 돌려 보는 실행 파일
+├─ run_collect.py       ← 수집기를 한 번 돌리고 장부에 저장하는 실행 파일
+├─ data/articles.db     ← 장부 파일 (Git에 올리지 않음, 실행하면 생김)
 └─ collector/           ← 수집 모듈 (pizzalist가 가져갈 부품)
    ├─ __init__.py       ← collect(): 모으기 → 중복 빼기 → 꼬리표 → 관계없는 것 버리기 → 최신순
    ├─ article.py        ← 기사 한 건 (제목, 주소, 언론사, 시각, 출처, 검색어, 요약, 꼬리표)
    ├─ classify.py       ← 단어 규칙 꼬리표: safety / popular / other / unrelated
+   ├─ store.py          ← SQLite 장부: save(), list_articles(), set_status(), count_by_status()
    └─ sources/          ← 출처별 가져오기. 출처마다 fetch(query) -> list[Article]
       ├─ __init__.py    ← 출처 목록
       ├─ google_news.py ← 구글 뉴스 RSS
@@ -98,6 +100,7 @@ bukangi-notice/
 | 10-19 | 저장소는 Public. 저장 기록에는 GitHub 비공개 이메일을 사용 | 포트폴리오로 공개하면서 이메일은 보호한다 |
 | 10-19 | `TASK.md`는 개인 메모장으로 쓰고 Git에 올리지 않음 | 공개 저장소라서 |
 | 10-19 | 거르기 방식: **단어 규칙 + 꼬리표만 붙이기.** 관계없는 기사만 버리고, 안전 단어가 있으면 인기 단어가 있어도 safety | 무료이고 근거가 보인다. 규칙 실수로 안전 기사가 사라지지 않게 한다. AI 판정은 7단계에서 |
+| 10-19 | 저장: **SQLite** (`data/articles.db`). 검수 상태 pending/approved/rejected. 같은 주소나 같은 제목이면 다시 넣지 않음 | 상태를 자주 바꾸고 "승인된 것만" 꺼내야 한다. Python 기본 포함. 부캉이 서버도 SQLite를 쓴다 |
 | 10-19 | 다음 작업: **거르기(2-3) 먼저**, 기관 공지 조사(2-2)는 그다음. pizzalist 초대는 나중에 | 결과가 바로 보이고, 같은 거르기를 기관 공지에도 쓸 수 있다 |
 
 ## 6. 출처 조사 기록 (10-18 ~ 10-19)
