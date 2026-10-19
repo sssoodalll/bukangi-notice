@@ -83,6 +83,17 @@ def list_articles(conn: sqlite3.Connection, status: str | None = None,
     return [dict(r, tags=json.loads(r["tags"] or "[]")) for r in rows]
 
 
+def list_approved(conn: sqlite3.Connection, since: str | None = None,
+                  limit: int = 50) -> list[dict]:
+    """승인된 기사를 최근 승인 순으로 꺼낸다. since(UTC ISO 시각) 이후 승인분만 고를 수 있다."""
+    sql, args = "SELECT * FROM articles WHERE status = 'approved'", []
+    if since:
+        sql += " AND reviewed_at > ?"; args.append(since)
+    sql += " ORDER BY reviewed_at DESC LIMIT ?"; args.append(limit)
+    rows = conn.execute(sql, args).fetchall()
+    return [dict(r, tags=json.loads(r["tags"] or "[]")) for r in rows]
+
+
 def set_status(conn: sqlite3.Connection, article_id: int, status: str) -> bool:
     """검수 결과를 기록한다. 해당 기사가 없으면 False."""
     if status not in STATUSES:

@@ -137,6 +137,30 @@ def change_status(article_id: int, status: str = Form(...), back: str = Form("/"
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
 
 
+API_FIELDS = ("id", "title", "url", "press", "published_at", "category", "tags", "reviewed_at")
+
+
+@app.get("/api/approved")
+def approved_articles(since: str = "", limit: int = 50):
+    """승인된 기사 목록 (부캉이 사이트가 가져가는 창구).
+
+    - since: 이 시각 이후에 승인된 기사만 (예: 2026-10-19T00:00:00+00:00). 비우면 전부.
+    - limit: 최대 몇 건 (기본 50, 최대 200)
+    최신 승인 순으로 돌려준다.
+    """
+    if since:
+        try:
+            since = datetime.fromisoformat(since).astimezone(timezone.utc).isoformat()
+        except ValueError:
+            raise HTTPException(400, "since는 ISO 시각이어야 해요 (예: 2026-10-19T00:00:00+00:00)")
+    conn = store.connect()
+    try:
+        rows = store.list_approved(conn, since=since or None, limit=max(1, min(limit, 200)))
+    finally:
+        conn.close()
+    return {"count": len(rows), "articles": [{k: r[k] for k in API_FIELDS} for r in rows]}
+
+
 @app.post("/collect")
 def collect_now():
     articles = collect()

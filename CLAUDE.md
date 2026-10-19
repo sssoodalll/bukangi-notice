@@ -48,7 +48,8 @@
 - [x] 2-4. GitHub 첫 저장(commit) + 올리기(push) — 10-19, https://github.com/sssoodalll/bukangi-notice (Public)
 - [x] 3. 저장 + 중복 제거 — 10-19, SQLite 장부 `data/articles.db` (실행할 때마다 새 기사만 추가)
 - [x] 4. 검수 화면 (승인/반려/되돌리기, 지금 새 기사 모으기) — 10-19, FastAPI 웹 페이지
-- [ ] 5. 전달 API (부캉이 사이트가 가져갈 창구)
+- [x] 5. 전달 API — 10-19, `GET /api/approved?since=&limit=` (JSON). 부캉이 사이트가 가져가는 방식
+- [ ] 5-1. 구글 뉴스 주소를 실제 기사 주소로 바꾸기 (지금은 news.google.com 경유 주소)
 - [ ] 6. 자동 실행 (주기적으로)
 - [ ] 7. 조건부 자동 판정 (검수 기록 기반)
 - [ ] 8. pizzalist에게 넘기기 (실행 문서)
@@ -64,13 +65,14 @@ bukangi-notice/
 ├─ .env.example         ← .env 견본 (비밀 값 없음)
 ├─ run_collect.py       ← 수집기를 한 번 돌리고 장부에 저장하는 실행 파일
 ├─ run_server.py        ← 검수 화면 서버 켜기 → http://localhost:8000 (끄기: Ctrl + C)
-├─ server/app.py        ← FastAPI 검수 화면: GET / , POST /articles/{id}/status , POST /collect
+├─ server/app.py        ← FastAPI: 검수 화면 GET / , POST /articles/{id}/status , POST /collect
+│                          전달 API GET /api/approved , 자동 설명서 GET /docs
 ├─ data/articles.db     ← 장부 파일 (Git에 올리지 않음, 실행하면 생김)
 └─ collector/           ← 수집 모듈 (pizzalist가 가져갈 부품)
    ├─ __init__.py       ← collect(): 모으기 → 중복 빼기 → 꼬리표 → 관계없는 것 버리기 → 최신순
    ├─ article.py        ← 기사 한 건 (제목, 주소, 언론사, 시각, 출처, 검색어, 요약, 꼬리표)
    ├─ classify.py       ← 단어 규칙 꼬리표: safety / popular / other / unrelated
-   ├─ store.py          ← SQLite 장부: save(), list_articles(), set_status(), count_by_status()
+   ├─ store.py          ← SQLite 장부: save(), list_articles(), list_approved(), set_status(), count_by_status()
    └─ sources/          ← 출처별 가져오기. 출처마다 fetch(query) -> list[Article]
       ├─ __init__.py    ← 출처 목록
       ├─ google_news.py ← 구글 뉴스 RSS
@@ -104,6 +106,7 @@ bukangi-notice/
 | 10-19 | 거르기 방식: **단어 규칙 + 꼬리표만 붙이기.** 관계없는 기사만 버리고, 안전 단어가 있으면 인기 단어가 있어도 safety | 무료이고 근거가 보인다. 규칙 실수로 안전 기사가 사라지지 않게 한다. AI 판정은 7단계에서 |
 | 10-19 | 저장: **SQLite** (`data/articles.db`). 검수 상태 pending/approved/rejected. 같은 주소나 같은 제목이면 다시 넣지 않음 | 상태를 자주 바꾸고 "승인된 것만" 꺼내야 한다. Python 기본 포함. 부캉이 서버도 SQLite를 쓴다 |
 | 10-19 | 검수 화면: **FastAPI 웹 페이지** (내 컴퓨터에서만, 127.0.0.1:8000). 별도 라이브러리 없이 HTML을 직접 만든다 | 전달 API도 같은 서버에 붙인다. 화면을 보여 줄 수 있다 |
+| 10-19 | 전달: **부캉이 사이트가 가지러 오는 방식(pull).** `GET /api/approved` — 승인 기사를 최근 승인 순으로. `since`(이 시각 이후 승인분만), `limit`(기본 50, 최대 200) | 요구사항 범위가 "전달 직전까지"다. pizzalist는 가져가는 코드만 넣으면 된다 |
 | 10-19 | 다음 작업: **거르기(2-3) 먼저**, 기관 공지 조사(2-2)는 그다음. pizzalist 초대는 나중에 | 결과가 바로 보이고, 같은 거르기를 기관 공지에도 쓸 수 있다 |
 
 ## 6. 출처 조사 기록 (10-18 ~ 10-19)
@@ -117,3 +120,12 @@ bukangi-notice/
   - 지금은 한시적 무료이고, 2027년 유료화를 검토 중이다. 기존 키 방식은 2027-06-30에 종료된다.
 - ❓ **부산일보·국제신문·정책브리핑 RSS**: 시험한 주소가 틀렸다. 주소 확인이 필요하다.
 - ❓ **기관 공지** (국립수산과학원, 부산시설공단, 부산해경, 동구청): 아직 조사 전.
+
+## 7. 전달 API 사용법 (pizzalist용)
+
+```
+GET http://<서버>:8000/api/approved?since=2026-10-19T00:00:00+00:00&limit=50
+→ {"count": 1, "articles": [{"id", "title", "url", "press", "published_at", "category", "tags", "reviewed_at"}]}
+```
+- 시각은 전부 UTC ISO 형식이다. 마지막으로 받은 기사의 `reviewed_at`을 다음 요청의 `since`로 넣으면 새 승인분만 받는다.
+- 알려진 한계: 구글 뉴스 기사의 `url`은 news.google.com을 거치는 주소다 (누르면 원문으로 이동한다). → 5-1에서 고친다.
