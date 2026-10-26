@@ -84,13 +84,21 @@ pip install -r requirements.txt
 
 ## 실행
 
+먼저 관리자 열쇠를 만듭니다. 열쇠가 없으면 서버가 켜지지 않습니다.
+
 ```bash
-python run_server.py             # 서버 켜기 → http://localhost:8000
+cp .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(32))"   # 나온 값을 .env의 ADMIN_TOKEN= 뒤에 붙여 넣기
+```
+
+```bash
+python run_server.py             # 서버 켜기 → http://localhost:8000 → 로그인 화면에 열쇠 입력
 ```
 
 | 주소 | 내용 |
 |---|---|
-| `/` | 검수 화면 |
+| `/` | 검수 화면 (관리자 로그인 필요) |
+| `/login`, `/logout` | 관리자 로그인·로그아웃 |
 | `/api/approved` | 승인된 기사 (JSON) |
 | `/docs` | 자동 생성 API 설명서 |
 
@@ -105,6 +113,7 @@ python run_judge.py              # 판정기 시험(교차 검증) + 학습 + �
 
 | 이름 | 기본값 | 설명 |
 |---|---|---|
+| `ADMIN_TOKEN` | (필수) | 검수 화면 관리자 열쇠, 24자 이상. `.env` 파일에 넣어도 됩니다 |
 | `HOST` / `PORT` | `127.0.0.1` / `8000` | 서버 주소 |
 | `COLLECT_INTERVAL_MIN` | `60` | 수집 간격(분). `0`이면 자동 수집 끔 |
 | `AUTO_DECIDE` | `approve` | `off` 점수만 / `approve` 자동 승인만 / `both` 자동 승인 + 자동 반려 |
@@ -144,7 +153,8 @@ GET /api/approved?since=2026-10-19T00:00:00+00:00&limit=50
 
 ## 알려진 한계
 
-- **검수 화면에는 로그인이 없습니다.** 기본값은 이 컴퓨터에서만 접속되는 `127.0.0.1`입니다. 외부에 열 때는 인증을 붙여야 합니다.
+- 검수 화면은 **관리자 열쇠 하나**로 로그인합니다 (쿠키 14일 유지, 쿠키에는 열쇠로 만든 서명만 저장). 사람별 계정은 없습니다. 외부에 열 때는 HTTPS를 쓰세요.
+- 전달 API(`/api/approved`)는 로그인 없이 열려 있습니다. 승인된 기사만 나갑니다.
 - 판정기는 제목·요약의 글자만 봅니다. 문장의 뜻이 중요한 기사는 틀릴 수 있어서, 판정 엔진(`judge.py`)을 로컬 AI나 Claude API로 바꿔 끼울 수 있게 만들었습니다.
 - 출처가 Bing 뉴스 하나입니다. 기관 공지(해경, 부산시설공단 등)는 아직 붙이지 않았습니다.
 - 2026-10-19 이전에 모은 일부 기사는 주소가 news.google.com을 거칩니다 (`source=google_news`).

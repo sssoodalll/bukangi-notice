@@ -71,7 +71,8 @@ bukangi-notice/
 ├─ run_judge.py         ← 판정기 시험(교차 검증) + 학습 + 검수 전 기사에 점수 매기기
 ├─ run_server.py        ← 서버 켜기 (검수 화면 + 전달 API + 자동 수집) → http://localhost:8000 (끄기: Ctrl + C)
 ├─ server/scheduler.py  ← 자동 수집 알람: collect → save → 판정기 다시 학습 → 점수 (AUTO_DECIDE=1이면 자동 승인/반려)
-├─ server/app.py        ← FastAPI: 검수 화면 GET / , POST /articles/{id}/status , POST /collect
+├─ server/auth.py       ← 관리자 로그인 (ADMIN_TOKEN, 쿠키 서명)
+├─ server/app.py        ← FastAPI: 검수 화면 GET / , POST /articles/{id}/status , POST /collect (로그인 필요), GET·POST /login, GET /logout
 │                          전달 API GET /api/approved , 자동 설명서 GET /docs
 ├─ data/articles.db     ← 장부 파일 (Git에 올리지 않음, 실행하면 생김)
 └─ collector/           ← 수집 모듈 (pizzalist가 가져갈 부품)
@@ -130,6 +131,7 @@ bukangi-notice/
 | 10-19 | **자동 승인만 켠다 (0.8 이상).** 자동 반려는 끈다 | 안전 기사를 놓치는 실수가 잘못 내보내는 실수보다 위험하다 (놓친 건 아무도 모른다) |
 | 10-19 | 검수 기록은 **장부 파일(`articles.db`)을 pizzalist에게 직접 전달** (제외 단어 파일과 함께, `handover/` 폴더) | 판정기가 바로 동작한다. 공개되지 않는다. 할 일이 가장 적다 |
 | 10-19 | 라이선스 **MIT** (저작권자 표기는 GitHub 아이디) | 상황판 저장소도 MIT라서 붙여 쓰기에 권리 관계가 깔끔하다 |
+| 10-26 | 검수 화면 로그인: **관리자 열쇠 하나(ADMIN_TOKEN)** 방식. 열쇠가 없거나 24자 미만이면 서버가 안 켜짐. 쿠키에는 HMAC 서명만, HttpOnly·SameSite=Strict, 14일 유지. 전달 API는 아직 열려 있음 | 사용자와 pizzalist만 들어가게. 상황판 관리자 페이지도 토큰 방식이다 |
 | 10-19 | 다음 작업: **거르기(2-3) 먼저**, 기관 공지 조사(2-2)는 그다음. pizzalist 초대는 나중에 | 결과가 바로 보이고, 같은 거르기를 기관 공지에도 쓸 수 있다 |
 
 ## 6. 출처 조사 기록 (10-18 ~ 10-19)
